@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>BrightLane Cleaning — HostBot demo</title>
+  <meta name="robots" content="noindex,nofollow" />
+  <style>
+    :root {
+      --ink: #12231c;
+      --muted: #4d6359;
+      --line: #d7e3dc;
+      --bg: #f3f7f4;
+      --card: #ffffff;
+      --brand: #0f6b4c;
+      --brand-dark: #0b4f38;
+      --accent: #e8f6ef;
+      --ai: #ffffff;
+      --user: #0f6b4c;
+      --warn: #8a5a12;
+      --shadow: 0 10px 30px rgba(18, 35, 28, 0.08);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+      background: radial-gradient(1200px 500px at 10% -10%, #dff3ea, transparent), var(--bg);
+      color: var(--ink);
+      min-height: 100vh;
+    }
+    .wrap {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 20px 16px 40px;
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      gap: 20px;
+    }
+    @media (max-width: 860px) {
+      .wrap { grid-template-columns: 1fr; padding: 12px; }
+    }
+    .panel, .chat {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      box-shadow: var(--shadow);
+    }
+    .panel { padding: 22px; }
+    .eyebrow {
+      font-size: 11px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--brand);
+      font-weight: 700;
+    }
+    h1 { font-size: 26px; margin: 8px 0 10px; letter-spacing: -0.03em; }
+    .panel p, .note { color: var(--muted); font-size: 14px; line-height: 1.5; }
+    .badge {
+      display: inline-block;
+      background: #fff6e5;
+      color: var(--warn);
+      border: 1px solid #f0d7a3;
+      border-radius: 999px;
+      padding: 4px 10px;
+      font-size: 12px;
+      font-weight: 600;
+      margin-bottom: 12px;
+    }
+    .meta { list-style: none; padding: 0; margin: 16px 0; }
+    .meta li {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--line);
+      font-size: 14px;
+    }
+    .meta span { color: var(--muted); }
+    .prices { font-size: 13px; width: 100%; border-collapse: collapse; margin-top: 8px; }
+    .prices th, .prices td { text-align: left; padding: 6px 0; border-bottom: 1px solid var(--line); }
+    .back {
+      display: inline-block;
+      margin-top: 16px;
+      color: var(--brand-dark);
+      font-weight: 600;
+      text-decoration: none;
+    }
+    .chat { display: flex; flex-direction: column; min-height: 720px; overflow: hidden; }
+    .chat-head {
+      padding: 16px 18px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .avatar {
+      width: 42px; height: 42px; border-radius: 50%;
+      background: var(--brand); color: #fff;
+      display: grid; place-items: center; font-weight: 700;
+    }
+    .chat-head h2 { margin: 0; font-size: 16px; }
+    .chat-head p { margin: 2px 0 0; font-size: 12px; color: var(--muted); }
+    .dot { color: #1b8a54; font-weight: 700; }
+    #log {
+      flex: 1;
+      overflow-y: auto;
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      background: linear-gradient(#f7fbf8, #eef6f1);
+    }
+    .msg {
+      max-width: 78%;
+      padding: 10px 13px;
+      border-radius: 14px;
+      font-size: 14.5px;
+      line-height: 1.45;
+      white-space: pre-wrap;
+    }
+    .msg.ai { background: var(--ai); border: 1px solid var(--line); align-self: flex-start; border-bottom-left-radius: 4px; }
+    .msg.user { background: var(--user); color: #fff; align-self: flex-end; border-bottom-right-radius: 4px; }
+    .msg.sys { align-self: center; background: transparent; color: var(--muted); font-size: 12px; border: 0; }
+    .chips { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 18px 10px; }
+    .chips button, .choice {
+      border: 1px solid var(--line);
+      background: #fff;
+      color: var(--ink);
+      border-radius: 999px;
+      padding: 7px 12px;
+      font-size: 13px;
+      cursor: pointer;
+    }
+    .chips button:hover, .choice:hover { border-color: var(--brand); color: var(--brand-dark); }
+    .composer {
+      display: flex;
+      gap: 8px;
+      padding: 12px 14px 16px;
+      border-top: 1px solid var(--line);
+    }
+    #input {
+      flex: 1;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 12px 14px;
+      font: inherit;
+    }
+    #send {
+      background: var(--brand);
+      color: #fff;
+      border: 0;
+      border-radius: 12px;
+      padding: 0 18px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    #send:hover { background: var(--brand-dark); }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <aside class="panel">
+      <div class="badge">Demo only · not a live business</div>
+      <div class="eyebrow">HostBot demo</div>
+      <h1>BrightLane Cleaning</h1>
+      <p>Sample residential cleaner in Manchester, UK. Prices, postcodes and time slots are demonstration data, not a market survey and not a real diary.</p>
+      <ul class="meta">
+        <li><span>Hours</span><b>Mon–Sat, 08:00–18:00</b></li>
+        <li><span>Area</span><b>Manchester, M postcodes</b></li>
+        <li><span>Channel</span><b>Web chat (production also uses official WhatsApp)</b></li>
+      </ul>
+      <table class="prices">
+        <thead><tr><th>Regular clean (sample)</th><th>One-off</th></tr></thead>
+        <tbody>
+          <tr><td>Studio / 1 bedroom</td><td>£48</td></tr>
+          <tr><td>2 bedrooms</td><td>£65</td></tr>
+          <tr><td>3 bedrooms</td><td>£85</td></tr>
+          <tr><td>4 bedrooms</td><td>£105</td></tr>
+          <tr><td>5+ bedrooms or end of tenancy</td><td>Passed to the owner</td></tr>
+        </tbody>
+      </table>
+      <p class="note">Weekly regular cleans: 15% off the sample one-off price. Fortnightly: 10% off. Deep cleans have a separate sample list in the chat. Add-ons: oven £25, fridge £20, internal windows £15.</p>
+      <a class="back" href="../index.html">← Back to the HostBot site</a>
+    </aside>
+    <section class="chat">
+      <div class="chat-head">
+        <div class="avatar">BL</div>
+        <div>
+          <h2>BrightLane assistant</h2>
+          <p><span class="dot">●</span> AI demo · replies stay in this browser</p>
+        </div>
+      </div>
+      <div id="log"></div>
+      <div class="chips" id="chips"></div>
+      <form class="composer" id="form">
+        <input id="input" type="text" autocomplete="off" placeholder="Type a message…" />
+        <button id="send" type="submit">Send</button>
+      </form>
+    </section>
+  </div>
+  <script>
+    const logEl = document.getElementById("log");
+    const chipsEl = document.getElementById("chips");
+    const form = document.getElementById("form");
+    const input = document.getElementById("input");
+
+    const PRICES = { 1: 48, 2: 65, 3: 85, 4: 105 };
+    const DEEP = { 1: 150, 2: 190, 3: 240 };
+    const ADDONS = { oven: 25, fridge: 20, windows: 15 };
+    const SLOTS = [
+      { id: "A", label: "Tuesday 18 November, 09:00–12:00" },
+      { id: "B", label: "Wednesday 19 November, 13:00–16:00" },
+      { id: "C", label: "Thursday 20 November, 09:00–12:00" },
+      { id: "D", label: "Saturday 22 November, 10:00–13:00" }
+    ];
+    const DEFAULT_CHIPS = [
+      "How much for a 2-bed regular clean?",
+      "Book a regular clean",
+      "Do you clean ovens?",
+      "I need an end-of-tenancy quote",
+      "Speak to a person"
+    ];
+
+    const state = {
+      step: "idle",
+      beds: null,
+      baths: null,
+      freq: null,
+      postcode: null,
+      date: null,
+      service: "regular",
+      addons: [],
+      quote: null,
+      handoff: false
+    };
+
+    function add(role, text) {
+      const div = document.createElement("div");
+      div.className = "msg " + role;
+      div.textContent = text;
+      logEl.appendChild(div);
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+    function setChips(items) {
+      chipsEl.innerHTML = "";
+      (items || DEFAULT_CHIPS).forEach((label) => {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.textContent = label;
+        b.addEventListener("click", () => submit(label));
+        chipsEl.appendChild(b);
+      });
+    }
+    function welcome() {
+      add("sys", "Demonstration chat · BrightLane Cleaning is a fictional company");
+      add("ai", "Hello — I’m the virtual AI assistant for BrightLane Cleaning, a sample company used to show how HostBot works.\n\nI can answer approved FAQs, take a regular-clean booking, or collect details for anything that needs a person (for example an end-of-tenancy clean). I won’t invent a price that isn’t on the sample list.\n\nHow can I help today?");
+      setChips(DEFAULT_CHIPS);
+    }
+
+    function inArea(pc) {
+      const p = (pc || "").toUpperCase().replace(/\s+/g, "");
+      if (!p) return false;
+      if (/^M([1-9]\d?)[0-9A-Z]{0,3}$/.test(p) || /^M([1-9]\d?)$/.test(p)) return true;
+      return /^M\d/.test(p);
+    }
+    function money(n) { return "£" + n.toFixed(0); }
+    function quoteText() {
+      const beds = state.beds;
+      const service = state.service;
+      if (service === "eot" || service === "commercial" || beds >= 5 || (service === "deep" && beds >= 4)) {
+        return null;
+      }
+      let base = service === "deep" ? DEEP[beds] : PRICES[beds];
+      if (!base) return null;
+      let discount = 0;
+      if (service === "regular" && state.freq === "weekly") discount = 0.15;
+      if (service === "regular" && state.freq === "fortnightly") discount = 0.10;
+      const add = state.addons.reduce((s, k) => s + (ADDONS[k] || 0), 0);
+      const total = Math.round(base * (1 - discount) + add);
+      state.quote = { base, discount, add, total, service, beds };
+      const freqBit = state.freq === "weekly" ? "weekly (15% off the sample one-off price)"
+        : state.freq === "fortnightly" ? "fortnightly (10% off)"
+        : "as a one-off";
+      const addBit = state.addons.length ? " plus " + state.addons.join(", ") : "";
+      return "On the BrightLane sample list, a " + beds + "-bedroom " + (service === "deep" ? "deep clean" : "regular clean") + " " + freqBit + addBit + " is " + money(total) + ".\n\nThis is demonstration pricing only. Shall I offer a sample time slot, or do you want to change the details?";
+    }
+
+    function classify(raw) {
+      const t = raw.toLowerCase().trim();
+      if (/speak to a (person|human|someone)|talk to (a person|someone|the owner|a human)|manager|real person|human please|operator/.test(t)) return "human";
+      if (/complaint|damag|broke|refund|invoice|payment|charged|stole|allerg/.test(t)) return "handoff";
+      if (/end of tenancy|end-of-tenancy|move out|checkout clean|eot/.test(t)) return "eot";
+      if (/commercial|office|airbnb turnover|business clean/.test(t)) return "commercial";
+      if (/deep clean/.test(t)) return "deep";
+      if (/oven|fridge|window/.test(t) && !/how do you/.test(t)) return "addon";
+      if (/book|appointment|schedule|available|slot|reserve/.test(t)) return "book";
+      if (/how much|price|cost|quote|rate|£|\$/.test(t)) return "price";
+      if (/area|postcode|cover|manchester|do you come|travel/.test(t)) return "area";
+      if (/hour|open|when do you|sunday/.test(t)) return "hours";
+      if (/pet|dog|cat/.test(t)) return "pets";
+      if (/product|chemical|eco|fragrance|bleach/.test(t)) return "products";
+      if (/cancel|reschedul/.test(t)) return "cancel";
+      if (/service|what do you (do|include)|what's included|regular clean/.test(t)) return "services";
+      if (/hello|hi\b|hey|good morning|good afternoon/.test(t)) return "hello";
+      return "other";
+    }
+
+    function parseBeds(t) {
+      const m = t.match(/(\d+)\s*-?\s*(bed|bedroom)/i) || t.match(/\b([1-5])\b/);
+      if (/studio/.test(t.toLowerCase())) return 1;
+      return m ? Number(m[1]) : null;
+    }
+    function parseFreq(t) {
+      const s = t.toLowerCase();
+      if (/week/.test(s)) return "weekly";
+      if (/fortnight|every two|bi-?week/.test(s)) return "fortnightly";
+      if (/one-?off|once|single|just once/.test(s)) return "one-off";
+      return null;
+    }
+    function parsePostcode(t) {
+      const m = t.toUpperCase().match(/\b(M\d{1,2}\s*\d[A-Z]{2}|M\d{1,2})\b/);
+      return m ? m[1] : null;
+    }
+
+    function faq(intent) {
+      const map = {
+        hello: "Hello — I can help with sample prices, a regular-clean booking, or questions about hours, area and pets. What would you like to do?",
+        area: "In this demo BrightLane covers Manchester postcodes starting with M, within about 12 miles of the city centre. Share a postcode and I’ll check it against that sample rule. If it’s outside the area I’ll pass the request to a person instead of inventing a travel fee.",
+        hours: "Sample hours are Monday to Saturday, 08:00–18:00 (UK time). Closed on Sundays. I can offer demonstration slots inside those hours.",
+        pets: "Pets are welcome on the sample policy. Please mention dogs or cats when you book so the cleaner can plan. I won’t give medical or allergy advice.",
+        products: "The sample policy uses standard eco-friendly products, with a fragrance-free option if you ask. I can’t advise on mixing or using chemicals — that’s for the owner.",
+        cancel: "The sample cancellation policy asks for at least 24 hours’ notice. I can collect a cancellation request; any fee would be confirmed by a person, I won’t invent one.",
+        services: "BrightLane’s sample services are regular cleans, deep cleans, and end-of-tenancy cleans (the last two may need a person if they’re not on the standard list). Optional add-ons: oven (£25), fridge (£20) and internal windows (£15). What’s included in a regular clean: kitchens, bathrooms, floors, surfaces and bins, as set out in the approved FAQ."
+      };
+      return map[intent];
+    }
+
+    function startQuote(service, text) {
+      state.step = "quote";
+      state.service = service;
+      const beds = parseBeds(text);
+      if (beds) state.beds = beds;
+      const freq = parseFreq(text);
+      if (freq) state.freq = freq;
+      const pc = parsePostcode(text);
+      if (pc) state.postcode = pc;
+      return nextQuoteQuestion();
+    }
+
+    function nextQuoteQuestion() {
+      if (state.service === "eot" || state.service === "commercial") {
+        if (!state.beds) {
+          setChips(["2 bedrooms", "3 bedrooms", "4 bedrooms"]);
+          return "I won’t give a sample price for this type of job — it needs a person. I can still collect the details.\n\nHow many bedrooms?";
+        }
+        if (!state.postcode) {
+          setChips(["M1", "M20", "M21"]);
+          return "What’s the postcode?";
+        }
+        state.step = "idle";
+        state.handoff = true;
+        setChips(["That’s all, thanks", "Ask something else"]);
+        return "Thank you. I’ve prepared a handoff for the owner with a " + state.beds + "-bedroom " + (state.service === "eot" ? "end-of-tenancy" : "non-standard") + " request at " + state.postcode + ". In a live HostBot setup the owner would get this summary immediately. I haven’t invented a price.";
+      }
+      if (!state.beds) {
+        setChips(["Studio / 1 bedroom", "2 bedrooms", "3 bedrooms", "4 bedrooms"]);
+        return "How many bedrooms is the home? I can price 1 to 4 bedrooms from the sample list.";
+      }
+      if (state.beds >= 5) {
+        state.handoff = true;
+        state.step = "idle";
+        setChips(DEFAULT_CHIPS);
+        return "A home with five or more bedrooms is outside the sample price list, so I won’t invent a figure. I’ll pass this to a person. You can still ask me about standard services.";
+      }
+      if (!state.baths) {
+        setChips(["1 bathroom", "2 bathrooms", "3 bathrooms"]);
+        return "How many bathrooms?";
+      }
+      if (state.service === "regular" && !state.freq) {
+        setChips(["One-off", "Weekly (15% off)", "Fortnightly (10% off)"]);
+        return "Is this a one-off, weekly or fortnightly regular clean?";
+      }
+      if (!state.postcode) {
+        setChips(["M1 1AE", "M20 2RN", "Check another postcode"]);
+        return "What’s the postcode? I’ll check it against the sample Manchester area.";
+      }
+      if (!inArea(state.postcode)) {
+        state.handoff = true;
+        state.step = "idle";
+        setChips(DEFAULT_CHIPS);
+        return "That postcode sits outside the sample BrightLane area (Manchester M postcodes). I won’t invent a travel fee. I’ll leave this for a person to review.";
+      }
+      const q = quoteText();
+      if (!q) {
+        state.handoff = true;
+        state.step = "idle";
+        setChips(DEFAULT_CHIPS);
+        return "This job isn’t on the sample list, so I won’t invent a price. I’ll pass the details to a person.";
+      }
+      state.step = "quoted";
+      setChips(["Yes, show sample slots", "Add an oven clean", "Change the details", "Speak to a person"]);
+      return q;
+    }
+
+    function offerSlots() {
+      state.step = "slots";
+      setChips(SLOTS.map((s) => s.id + ": " + s.label));
+      return "Here are four demonstration slots (not a real calendar).\n\n" + SLOTS.map((s) => s.id + ". " + s.label).join("\n") + "\n\nReply with A, B, C or D, or tell me if none of those work.";
+    }
+
+    function confirmSlot(letter) {
+      const slot = SLOTS.find((s) => s.id === letter);
+      if (!slot) return "Please choose A, B, C or D from the sample list.";
+      const ref = "BL-" + Math.floor(1000 + Math.random() * 9000);
+      state.step = "booked";
+      setChips(["Ask another question", "Cancel this sample booking", "Speak to a person"]);
+      const price = state.quote ? " The sample total noted was " + money(state.quote.total) + "." : "";
+      return "Booked on the demonstration calendar: " + slot.label + " for a " + (state.beds || "") + "-bedroom " + (state.service === "deep" ? "deep" : "regular") + " clean at " + (state.postcode || "the address we collected") + "." + price + "\n\nReference " + ref + ".\n\nIn production, HostBot would write this to Google Calendar only after the API accepts the slot, then notify the owner. No data left this browser.";
+    }
+
+    function handleQuoteAnswer(text) {
+      const t = text.toLowerCase();
+      if (state.step === "quoted") {
+        if (/slot|yes|book|show/.test(t)) return offerSlots();
+        if (/oven/.test(t)) { if (!state.addons.includes("oven")) state.addons.push("oven"); return quoteText(); }
+        if (/fridge/.test(t)) { if (!state.addons.includes("fridge")) state.addons.push("fridge"); return quoteText(); }
+        if (/window/.test(t)) { if (!state.addons.includes("windows")) state.addons.push("windows"); return quoteText(); }
+        if (/change|different|wrong|reset/.test(t)) {
+          state.beds = state.baths = state.freq = state.postcode = state.quote = null;
+          state.addons = [];
+          state.step = "quote";
+          return nextQuoteQuestion();
+        }
+        if (/person|human|owner/.test(t)) return handoff("You’ve asked for a person. I’ll stop automating this conversation and leave the details for the owner.");
+      }
+      if (state.step === "slots") {
+        const letter = (text.toUpperCase().match(/\b([ABCD])\b/) || [])[1];
+        if (letter) return confirmSlot(letter);
+        if (/none|later|another day/.test(t)) {
+          state.step = "idle";
+          setChips(DEFAULT_CHIPS);
+          return "No problem. I haven’t booked anything. Tell me another day or ask a different question.";
+        }
+      }
+      if (!state.beds && parseBeds(t)) state.beds = parseBeds(t);
+      else if (!state.baths && /(\d+)\s*bath/.test(t)) state.baths = Number(t.match(/(\d+)\s*bath/)[1]);
+      else if (!state.baths && /^[1-4]$/.test(t.trim())) state.baths = Number(t.trim());
+      else if (state.service === "regular" && !state.freq && parseFreq(t)) state.freq = parseFreq(t);
+      else if (state.service === "regular" && !state.freq && /one-?off|once/.test(t)) state.freq = "one-off";
+      else if (!state.postcode && (parsePostcode(t) || /^[a-z0-9 ]{2,8}$/i.test(t.trim()))) {
+        state.postcode = (parsePostcode(t) || t.trim().toUpperCase());
+      }
+      return nextQuoteQuestion();
+    }
+
+    function handoff(msg) {
+      state.handoff = true;
+      state.step = "idle";
+      setChips(DEFAULT_CHIPS);
+      return msg;
+    }
+
+    function reply(text) {
+      if (state.handoff && /person|human|owner|manager/.test(text.toLowerCase())) {
+        return "A person would already have been notified in a live setup. In this demo I can still answer FAQs or start a new sample booking if you like.";
+      }
+      if (state.step === "quote" || state.step === "quoted" || state.step === "slots") {
+        const intent = classify(text);
+        if (intent === "human" || intent === "handoff") {
+          return handoff(intent === "handoff"
+            ? "That needs a person (for example a complaint, payment or damage). I won’t try to settle it here. I’ve marked this for handoff."
+            : "Of course. I’ll stop the automated booking and leave a handoff note for a person.");
+        }
+        return handleQuoteAnswer(text);
+      }
+      if (state.step === "booked" && /cancel/.test(text.toLowerCase())) {
+        state.step = "idle";
+        setChips(DEFAULT_CHIPS);
+        return "I’ve noted a cancellation request for the sample booking. A person would confirm any fee. The demonstration slot is now treated as released.";
+      }
+
+      const intent = classify(text);
+      if (intent === "human") return handoff("Of course. I’ll leave this for a person and stop automating the booking. In production the owner would be notified straight away.");
+      if (intent === "handoff") return handoff("That needs a person, so I won’t handle it automatically. I’ve marked a handoff. You can still ask me a standard FAQ if you want.");
+      if (intent === "eot") return startQuote("eot", text);
+      if (intent === "commercial") return startQuote("commercial", text);
+      if (intent === "deep") return startQuote("deep", text);
+      if (intent === "addon") {
+        const bits = [];
+        if (/oven/.test(text.toLowerCase())) bits.push("oven clean, £25");
+        if (/fridge/.test(text.toLowerCase())) bits.push("fridge, £20");
+        if (/window/.test(text.toLowerCase())) bits.push("internal windows, £15");
+        return "Yes. On the sample list: " + bits.join("; ") + ". I can add these to a regular-clean quote if you want to continue.";
+      }
+      if (intent === "price") {
+        const beds = parseBeds(text);
+        if (/deep/.test(text.toLowerCase())) return startQuote("deep", text);
+        if (beds && PRICES[beds] && !/end of tenancy/.test(text.toLowerCase())) {
+          return "On the sample list, a one-off regular clean for a " + beds + "-bedroom home is " + money(PRICES[beds]) + ". Weekly is 15% off, fortnightly 10% off. If you want a formal quote I’ll just need bathrooms, frequency and a postcode.";
+        }
+        return startQuote("regular", text);
+      }
+      if (intent === "book") return startQuote( /deep/.test(text.toLowerCase()) ? "deep" : "regular", text);
+      if (faq(intent)) { setChips(DEFAULT_CHIPS); return faq(intent); }
+      setChips(DEFAULT_CHIPS);
+      return "I can help with sample prices, a regular-clean booking, or approved FAQs (hours, area, pets, products, cancellations). If this is a custom job or a complaint, ask me to pass it to a person — I won’t invent an answer.";
+    }
+
+    function submit(text) {
+      const t = (text || "").trim();
+      if (!t) return;
+      add("user", t);
+      const out = reply(t);
+      add("ai", out);
+    }
+
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const t = input.value;
+      input.value = "";
+      submit(t);
+    });
+
+    welcome();
+  </script>
+</body>
+</html>
